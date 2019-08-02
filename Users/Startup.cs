@@ -62,6 +62,8 @@ namespace Users
             app.UseStaticFiles();
             app.UseIdentity(); //adds ASP.NET Core Identity to the request-handling pipeline
             app.UseMvcWithDefaultRoute();
+
+            AppIdentityDbContext.CreateAdminAccount(app.ApplicationServices, Configuration).Wait();
         }
     }
 }
