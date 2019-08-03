@@ -37,7 +37,7 @@ namespace Users
                                                                                            //Scoped objects are the same within a request, but different across different requests
                                                                                            //Singleton objects are the same for every object and every request
 
-            services.AddSingleton<IClaimsTransformation, LocationClaimsProvider>();                                                                                         
+            services.AddSingleton<IClaimsTransformation, LocationClaimsProvider>();
             services.AddTransient<IUserValidator<AppUser>, CustomUserValidator>();
             services.AddTransient<IAuthorizationHandler, BlockUsersHandler>();
             services.AddTransient<IAuthorizationHandler, DocumentAuthorizationHandler>();
@@ -89,8 +89,12 @@ namespace Users
             app.UseDeveloperExceptionPage();
             app.UseStaticFiles();
             app.UseIdentity(); //adds ASP.NET Core Identity to the request-handling pipeline
-            //app.UseClaimsTransformation(LocationClaimsProvider.AddClaims); not working do not know why...
-            app.UseMvcWithDefaultRoute();
+            //app.UseGoogleAuthentication(new Microsoft.AspNetCore.Authentication.Google.GoogleOptions
+            //{
+            //    ClientId = "",
+            //    ClientSecret = ""
+            //});
+            //app.UseMvcWithDefaultRoute();
 
             AppIdentityDbContext.CreateAdminAccount(app.ApplicationServices, Configuration).Wait();
         }

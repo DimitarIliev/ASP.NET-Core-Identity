@@ -5,13 +5,14 @@ using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Users.Models;
 
 namespace Users.Controllers
 {
     [Authorize]
-    public class AccountController: Controller
+    public class AccountController : Controller
     {
         private UserManager<AppUser> userManager;
         private SignInManager<AppUser> signInManager;
@@ -62,6 +63,50 @@ namespace Users.Controllers
         public IActionResult AccessDenied()
         {
             return View();
+        }
+
+        [AllowAnonymous]
+        public IActionResult GoogleLogin(string returnUrl)
+        {
+            var redirectUrl = Url.Action("GoogleResponse", "Account", new { ReturnUrl = returnUrl });
+            var properties = signInManager.ConfigureExternalAuthenticationProperties("Google", redirectUrl);
+
+            return new ChallengeResult("Google", properties);
+        }
+
+        [AllowAnonymous]
+        public async Task<IActionResult> GoogleResponse(string returnUrl = "/")
+        {
+            var info = await signInManager.GetExternalLoginInfoAsync();
+            if (info == null)
+            {
+                return RedirectToAction(nameof(Login));
+            }
+            var result = await signInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, false);
+
+            if (result.Succeeded)
+            {
+                return Redirect(returnUrl);
+            }
+            else
+            {
+                var user = new AppUser
+                {
+                    Email = info.Principal.FindFirst(ClaimTypes.Email).Value,
+                    UserName = info.Principal.FindFirst(ClaimTypes.Email).Value
+                };
+                var identityResult = await userManager.CreateAsync(user);
+                if (identityResult.Succeeded)
+                {
+                    identityResult = await userManager.AddLoginAsync(user, info);
+                    if (identityResult.Succeeded)
+                    {
+                        await signInManager.SignInAsync(user, false);
+                        return Redirect(returnUrl);
+                    }
+                }
+                return AccessDenied();
+            }
         }
     }
 }
