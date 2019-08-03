@@ -11,6 +11,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Users.Infrastructure;
 using Users.Models;
+using Microsoft.AspNetCore.Authentication;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Users
 {
@@ -33,7 +36,32 @@ namespace Users
                                                                                            //and every service
                                                                                            //Scoped objects are the same within a request, but different across different requests
                                                                                            //Singleton objects are the same for every object and every request
+
+            services.AddSingleton<IClaimsTransformation, LocationClaimsProvider>();                                                                                         
             services.AddTransient<IUserValidator<AppUser>, CustomUserValidator>();
+            services.AddTransient<IAuthorizationHandler, BlockUsersHandler>();
+            services.AddTransient<IAuthorizationHandler, DocumentAuthorizationHandler>();
+            services.AddAuthorization(options =>
+            {
+                options.AddPolicy("DCUsers", policy =>
+                {
+                    policy.RequireRole("Users");
+                    policy.RequireClaim(ClaimTypes.StateOrProvince, "DC");
+                });
+                options.AddPolicy("NotBob", policy =>
+                {
+                    policy.RequireAuthenticatedUser();
+                    policy.AddRequirements(new BlockUsersRequirement("Bob"));
+                });
+                options.AddPolicy("AuthorsAndEditors", policy =>
+                {
+                    policy.AddRequirements(new DocumentAuthorizationRequirement
+                    {
+                        AllowedAuthors = true,
+                        AllowedEditors = true
+                    });
+                });
+            });
             services.AddDbContext<AppIdentityDbContext>(options =>
                 options.UseSqlServer(
                     Configuration["Data:SportsStoreIdentity:ConnectionString"])); //set up Entity Framework (EF) Core, which provides
@@ -61,6 +89,7 @@ namespace Users
             app.UseDeveloperExceptionPage();
             app.UseStaticFiles();
             app.UseIdentity(); //adds ASP.NET Core Identity to the request-handling pipeline
+            //app.UseClaimsTransformation(LocationClaimsProvider.AddClaims); not working do not know why...
             app.UseMvcWithDefaultRoute();
 
             AppIdentityDbContext.CreateAdminAccount(app.ApplicationServices, Configuration).Wait();
